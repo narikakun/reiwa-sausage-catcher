@@ -550,7 +550,7 @@ function showResult() {
   ui.best.textContent=pad(state.best);ui.titleBest.textContent=pad(state.best);ui.finalScore.textContent=pad(state.score);ui.newBest.hidden=!isBest;
   ui.resultEyebrow.textContent=state.endingReason==='drop'?'SAUSAGE DROPPED!':'BALANCE LOST!';
   ui.resultTitle.textContent=state.endingReason==='drop'?'落とした！':'崩れた！';
-  showTowerShot(isBest);
+  showTowerShot();
   ui.result.hidden=false;
 }
 
@@ -757,10 +757,10 @@ function resetTowerShot(){
 }
 
 function shareText(){
-  return `令和版ソーセージキャッチャーで${towerShot.count}本刺して${state.score}点！ #令和版ソーセージキャッチャー`;
+  return `${towerShot.count}本刺して${state.score}点！\n#令和版ソーセージキャッチャー`;
 }
 
-function showTowerShot(isBest){
+function showTowerShot(){
   ui.saveButton.hidden=!towerShot.count;
   if(!towerShot.count)return;
   const image=document.createElement('canvas');image.width=SHOT_WIDTH;image.height=SHOT_HEIGHT;
@@ -779,7 +779,6 @@ function showTowerShot(isBest){
   context.beginPath();context.roundRect(60,SHOT_HEIGHT-210,SHOT_WIDTH-120,150,32);context.fill();
   label(`${towerShot.count}本`,SHOT_HEIGHT-140,58,'#ffe152');
   label(`SCORE ${pad(state.score)}`,SHOT_HEIGHT-82,40,'#ffffff');
-  if(isBest){context.save();context.translate(SHOT_WIDTH/2,SHOT_HEIGHT-238);context.rotate(-.05);context.translate(-SHOT_WIDTH/2,0);label('NEW BEST!',0,46,'#ffe152');context.restore()}
   image.toBlob(blob=>{
     if(!blob||state.mode!=='result')return;
     towerShot.blob=blob;towerShot.url=URL.createObjectURL(blob);
