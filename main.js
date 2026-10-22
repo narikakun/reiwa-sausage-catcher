@@ -845,9 +845,12 @@ function showTowerShot(){
 async function shareResult(){
   const text=shareText(),url=/^https?:$/.test(location.protocol)?location.href:undefined;
   const file=towerShot.blob&&new File([towerShot.blob],'sausage-tower.png',{type:'image/png'});
+  // On iOS a separate `url` makes apps such as X keep only the link and drop
+  // the image and text, so the link goes at the end of the text instead.
+  const textWithUrl=url?`${text}\n${url}`:text;
   try{
-    if(file&&navigator.canShare?.({files:[file]})){await navigator.share({files:[file],text,url});return}
-    if(navigator.share){await navigator.share({text,url});return}
+    if(file&&navigator.canShare?.({files:[file]})){await navigator.share({files:[file],text:textWithUrl});return}
+    if(navigator.share){await navigator.share({text:textWithUrl});return}
   }catch(error){if(error.name==='AbortError')return}
   open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}${url?`&url=${encodeURIComponent(url)}`:''}`,'_blank','noopener');
 }
