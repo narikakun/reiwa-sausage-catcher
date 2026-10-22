@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#ff5d38" />
     <title>令和版ソーセージキャッチャー</title>
+    <meta name="description" content="巨大な1本串を動かして、落ちてくるソーセージを刺して積み上げよう！スマホで遊べる3Dブラウザゲーム。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="令和版ソーセージキャッチャー" />
+    <meta property="og:title" content="令和版ソーセージキャッチャー" />
+    <meta property="og:description" content="巨大な1本串を動かして、落ちてくるソーセージを刺して積み上げよう！スマホで遊べる3Dブラウザゲーム。" />
+    <meta property="og:url" content="https://reiwa-sausage-catcher.nakn.jp/" />
+    <meta property="og:image" content="https://reiwa-sausage-catcher.nakn.jp/assets/ogp.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="令和版ソーセージキャッチャーのロゴ" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link rel="stylesheet" href="./styles.css" />
     <script type="importmap">
@@ -22,9 +34,9 @@
       <canvas id="scene" aria-hidden="true"></canvas>
 
       <section class="hud" aria-label="スコア">
-        <div class="score-card"><span>SCORE</span><strong id="score">0000</strong></div>
+        <div class="score-card"><span>SCORE</span><strong id="score" class="image-number hud-number" aria-label="0000"></strong></div>
         <div class="play-title" aria-label="令和版ソーセージキャッチャー"><small>令和版</small><b>ソーセージキャッチャー</b></div>
-        <div class="best-card"><span>BEST</span><strong id="best">0000</strong></div>
+        <div class="best-card"><span>BEST</span><strong id="best" class="image-number hud-number" aria-label="0000"></strong></div>
       </section>
 
       <div class="judgement" id="judgement" aria-live="assertive"></div>
@@ -33,22 +45,60 @@
         <h1 class="title-logo">
           <img src="./assets/title-logo.webp" alt="令和版ソーセージキャッチャー" />
         </h1>
-        <button id="startButton" type="button"><span class="play-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 5.5v13l10.5-6.5z" /></svg></span><b>スタート</b></button>
+        <button class="img-button start-image" id="startButton" type="button" aria-label="スタート"><img src="./assets/btn-start.webp" alt="" /></button>
+        <button class="img-button ranking-open" id="titleRankingButton" type="button" aria-label="ランキング" hidden><img src="./assets/btn-ranking.webp" alt="" /></button>
         <p class="title-best"><span>ベストスコア</span><b id="titleBest">0000</b></p>
       </section>
 
       <section class="result-panel" id="resultPanel" hidden>
-        <p class="eyebrow" id="resultEyebrow">BALANCE LOST!</p>
-        <h2 id="resultTitle">崩れた！</h2>
-        <img class="result-shot" id="resultShot" alt="一番高く積み上げたときのタワー" hidden />
-        <p class="result-score"><span>SCORE</span><b id="finalScore">0000</b></p>
-        <p id="newBest" class="new-best">NEW BEST!</p>
-        <p class="result-best" id="resultBest"></p>
-        <div class="result-actions">
-          <button id="shareButton" type="button">シェア</button>
-          <button id="saveButton" type="button">画像を保存</button>
+        <header class="result-header">
+          <img class="result-header-frame" src="./assets/result/header-frame.webp" alt="" />
+          <h2 class="result-title"><span id="resultTitle" class="sr-only">落とした！</span><img id="resultTitleImage" src="./assets/result/title-dropped.webp" alt="" /></h2>
+        </header>
+        <div class="result-summary">
+          <figure class="result-shot-frame">
+            <img class="result-shot" id="resultShot" alt="一番高く積み上げたときのタワー" hidden />
+            <figcaption>いちばん高く<br />積み上げた瞬間</figcaption>
+          </figure>
+          <div class="result-details">
+            <section class="score-board" aria-label="今回のスコア">
+              <p id="newBest" class="new-best">NEW RECORD!</p>
+              <p class="result-score"><span>スコア</span><b id="finalScore" class="image-number score-number" aria-label="0000"></b></p>
+              <p class="result-best" id="resultBest"><span id="resultBestLabel"></span><b id="resultBestScore" class="image-number best-number"></b><small id="resultBestGap">あと<span id="resultBestGapNumber" class="image-number gap-number"></span>点で更新</small></p>
+            </section>
+            <dl class="result-stats">
+              <div><dt><img class="stat-icon" src="./assets/result/icon-caught.webp" alt="" />キャッチした数</dt><dd><b id="resultCaught" class="image-number stat-number"></b><span>本</span></dd></div>
+              <div><dt><img class="stat-icon" src="./assets/result/icon-missed.webp" alt="" />落とした数</dt><dd><b id="resultMisses" class="image-number stat-number"></b><span>本</span></dd></div>
+              <div><dt><img class="stat-icon" src="./assets/result/icon-time.webp" alt="" />プレイ時間</dt><dd id="resultTime" class="image-number time-number" aria-label="00:00"></dd></div>
+            </dl>
+          </div>
         </div>
-        <button id="retryButton" type="button">もう一回！</button>
+        <div class="ranking-result">
+          <p class="ranking-status" id="rankingStatus" hidden></p>
+          <form class="ranking-entry" id="rankingForm" hidden>
+            <input id="rankingName" type="text" maxlength="10" placeholder="なまえ（10文字まで）" autocomplete="nickname" enterkeyhint="send" aria-label="ランキングに表示する名前" required />
+            <button id="rankingSubmit" type="submit">名前を登録</button>
+          </form>
+        </div>
+        <div class="result-buttons">
+          <button class="img-button" id="shareButton" type="button" aria-label="シェア"><img src="./assets/btn-share.webp" alt="" /></button>
+          <button class="img-button" id="resultRankingButton" type="button" aria-label="ランキング" hidden><img src="./assets/btn-ranking.webp" alt="" /></button>
+          <button class="img-button retry-image" id="retryButton" type="button" aria-label="リトライ"><img src="./assets/btn-retry.webp" alt="" /></button>
+          <button class="img-button title-image" id="titleButton" type="button" aria-label="タイトルへ"><img src="./assets/btn-title.webp" alt="" /></button>
+        </div>
+      </section>
+
+      <section class="ranking-panel" id="rankingPanel" hidden aria-label="ランキング">
+        <div class="ranking-card">
+          <h2>ランキング</h2>
+          <div class="ranking-tabs">
+            <button type="button" data-period="all" class="active">総合</button>
+            <button type="button" data-period="today">今日</button>
+          </div>
+          <ol class="ranking-list" id="rankingList"></ol>
+          <p class="ranking-message" id="rankingMessage"></p>
+          <button class="ranking-close" id="rankingClose" type="button">閉じる</button>
+        </div>
       </section>
 
       <button class="sound-toggle" id="soundToggle" type="button" aria-label="音を切る">♪</button>

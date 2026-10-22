@@ -1,0 +1,2 @@
+# Config and shared code are only loaded by the endpoints, never served.
+Require all denied

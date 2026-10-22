@@ -6,15 +6,23 @@ const $ = (selector) => document.querySelector(selector);
 const ui = {
   game: $('#game'), canvas: $('#scene'), score: $('#score'), best: $('#best'),
   judgement: $('#judgement'), start: $('#startPanel'), result: $('#resultPanel'),
-  finalScore: $('#finalScore'), newBest: $('#newBest'), startButton: $('#startButton'), retryButton: $('#retryButton'),
+  finalScore: $('#finalScore'), newBest: $('#newBest'), startButton: $('#startButton'), retryButton: $('#retryButton'), titleButton: $('#titleButton'),
   soundToggle: $('#soundToggle'), tapZone: $('#tapZone'), flash: $('#flash'), loading: $('#loading'),
-  titleBest: $('#titleBest'), resultTitle: $('#resultTitle'), resultEyebrow: $('#resultEyebrow'),
-  resultShot: $('#resultShot'), resultBest: $('#resultBest'), shareButton: $('#shareButton'), saveButton: $('#saveButton')
+  titleBest: $('#titleBest'), resultTitle: $('#resultTitle'), resultTitleImage: $('#resultTitleImage'),
+  resultShot: $('#resultShot'), resultBest: $('#resultBest'), resultBestLabel: $('#resultBestLabel'), resultBestScore: $('#resultBestScore'), resultBestGap: $('#resultBestGap'), resultBestGapNumber: $('#resultBestGapNumber'), resultCaught: $('#resultCaught'), resultMisses: $('#resultMisses'), resultTime: $('#resultTime'),
+  rankingForm: $('#rankingForm'), rankingName: $('#rankingName'), rankingSubmit: $('#rankingSubmit'), rankingStatus: $('#rankingStatus'),
+  rankingPanel: $('#rankingPanel'), rankingList: $('#rankingList'), rankingMessage: $('#rankingMessage'), rankingClose: $('#rankingClose'),
+  titleRankingButton: $('#titleRankingButton'), resultRankingButton: $('#resultRankingButton'), shareButton: $('#shareButton')
 };
 
 const clamp = THREE.MathUtils.clamp;
 const lerp = THREE.MathUtils.lerp;
 const BEST_KEY = 'sausage-catcher-3d-best-v1';
+const NAME_KEY = 'sausage-catcher-ranking-name';
+const PLAYER_KEY = 'sausage-catcher-player-key';
+// Base URL of the ranking API on the rental server (server/public), without a
+// trailing slash. Leave empty to hide the ranking features.
+const RANKING_API = 'https://db-api.nakn.jp/reiwa-sausage-catcher-api';
 const EARTH_GRAVITY = 9.81;
 const PERFECT_HALF_WIDTH = .24;
 const BALANCE_LIMIT = 1.2;
@@ -32,6 +40,20 @@ const TINE_OFFSETS = [0];
 // Storage can throw when site data is blocked; the game still runs without a saved best.
 function readBest(){try{return Number(localStorage.getItem(BEST_KEY)||0)||0}catch{return 0}}
 function writeBest(value){try{localStorage.setItem(BEST_KEY,String(value))}catch{}}
+function readName(){try{return localStorage.getItem(NAME_KEY)||''}catch{return ''}}
+function writeName(value){try{localStorage.setItem(NAME_KEY,value)}catch{}}
+// A random key that identifies this browser's player in the ranking, so later
+// games update the same entry. Without storage it only lasts for this visit.
+let sessionPlayerKey='';
+function playerKey(){
+  try{
+    const saved=localStorage.getItem(PLAYER_KEY);
+    if(/^[0-9a-f]{32}$/.test(saved||''))return saved;
+  }catch{}
+  sessionPlayerKey||=Array.from(crypto.getRandomValues(new Uint8Array(16)),byte=>byte.toString(16).padStart(2,'0')).join('');
+  try{localStorage.setItem(PLAYER_KEY,sessionPlayerKey)}catch{}
+  return sessionPlayerKey;
+}
 const state = {
   mode: 'loading', score: 0, best: readBest(),
   caught: 0, misses: 0, elapsed: 0, nextSpawn: 0, forkTargetX: 0, pointerNdcX: 0,
@@ -39,7 +61,8 @@ const state = {
   shake: 0, audio: null, balance: 0, endingReason: 'balance', aimRotation: null, shotDueAt: -1
 };
 
-ui.best.textContent = pad(state.best);
+renderImageNumber(ui.score,0,4);
+renderImageNumber(ui.best,state.best,4);
 ui.titleBest.textContent = pad(state.best);
 
 await RAPIER.init();
@@ -544,30 +567,64 @@ function collapse(reason='balance') {
 function showResult() {
   state.mode='result'; const previousBest=state.best,isBest=state.score>previousBest;
   if(isBest){state.best=state.score;writeBest(state.best);}
-  ui.resultBest.innerHTML=isBest
-    ?`<span>これまでのベスト</span><b>${pad(previousBest)}</b>`
-    :`<span>ベストスコア</span><b>${pad(state.best)}</b><small>あと${state.best-state.score+1}点で更新</small>`;
-  ui.best.textContent=pad(state.best);ui.titleBest.textContent=pad(state.best);ui.finalScore.textContent=pad(state.score);ui.newBest.hidden=!isBest;
-  ui.resultEyebrow.textContent=state.endingReason==='drop'?'SAUSAGE DROPPED!':'BALANCE LOST!';
+  ui.resultBestLabel.textContent=isBest?'これまでのベスト':'ベストスコア';
+  renderImageNumber(ui.resultBestScore,isBest?previousBest:state.best,4);
+  ui.resultBestGap.hidden=isBest;if(!isBest)renderImageNumber(ui.resultBestGapNumber,state.best-state.score+1);
+  renderImageNumber(ui.best,state.best,4);ui.titleBest.textContent=pad(state.best);renderImageNumber(ui.finalScore,state.score,4);ui.newBest.hidden=!isBest;
+  renderImageNumber(ui.resultCaught,state.caught);renderImageNumber(ui.resultMisses,state.misses);renderImageTime(ui.resultTime,state.elapsed);
   ui.resultTitle.textContent=state.endingReason==='drop'?'落とした！':'崩れた！';
+  ui.resultTitleImage.src=state.endingReason==='drop'?'./assets/result/title-dropped.webp':'./assets/result/title-collapsed.webp';
   showTowerShot();
+  recordRanking();
   ui.result.hidden=false;
 }
 
-function resetGame() {
+function clearSausages() {
   if(state.active)removeActive();
   [...state.stack,...state.debris].forEach(x=>disposeSausageMesh(x.mesh));
   state.stack.forEach(x=>world.removeRigidBody(x.body));
   state.debris.forEach(x=>world.removeRigidBody(x.body));
+  state.stack=[];state.debris=[];
+}
+
+function showTitle() {
+  clearSausages();
+  state.mode='start';
+  fork.position.set(0,FORK_REST_Y,.1);fork.rotation.set(0,0,0);state.forkTargetX=0;
+  resetForkExtensions();updateForkTipColliders();
+  ui.result.hidden=true;ui.start.hidden=false;ui.game.classList.add('is-title');ui.tapZone.classList.remove('ready');
+}
+
+function resetGame() {
+  clearSausages();
   Object.assign(state,{mode:'playing',score:0,caught:0,misses:0,elapsed:0,nextSpawn:0,forkTargetX:0,pointerNdcX:0,active:null,stack:[],debris:[],shake:0,balance:0,endingReason:'balance',aimRotation:null,shotDueAt:-1});
+  startRankingSession();
   resetTowerShot();
   fork.position.set(0,FORK_REST_Y,.1);fork.rotation.set(0,0,0);forkPhysicsBody.setTranslation({x:0,y:FORK_REST_Y,z:.1},true);forkPhysicsBody.setRotation({x:0,y:0,z:0,w:1},true);resetForkExtensions();updateForkTipColliders();setForkTipsSolid(true);ui.result.hidden=true;ui.start.hidden=true;ui.game.classList.remove('is-title');ui.tapZone.classList.add('ready');
   updateHud(); scheduleNext(.4); sound('start');
 }
 
 function scheduleNext(delay) { state.nextSpawn=delay; }
-function updateHud(){ui.score.textContent=pad(state.score);}
+function updateHud(){renderImageNumber(ui.score,state.score,4);}
 function pad(n){return String(Math.max(0,n)).padStart(4,'0')}
+function formatTime(seconds){const total=Math.max(0,Math.floor(seconds));return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`}
+function renderImageNumber(element,value,padLength=0){
+  const text=String(Math.max(0,Math.floor(value))).padStart(padLength,'0');
+  element.replaceChildren(...[...text].map(makeDigit));
+  element.setAttribute('aria-label',text);
+}
+function makeDigit(digit){
+  const slot=document.createElement('span');slot.className='digit-slot';slot.dataset.digit=digit;
+  slot.append(Object.assign(document.createElement('img'),{src:`./assets/result/digit-${digit}.webp`,alt:''}));return slot;
+}
+function renderImageTime(element,seconds){
+  const text=formatTime(seconds),nodes=[];
+  for(const character of text){
+    if(character===':'){const colon=document.createElement('span');colon.className='digit-colon';colon.textContent=':';nodes.push(colon);}
+    else nodes.push(makeDigit(character));
+  }
+  element.replaceChildren(...nodes);element.setAttribute('aria-label',text);
+}
 function showJudgement(text){ui.judgement.className=`judgement ${text.toLowerCase()}`;ui.judgement.textContent=text;void ui.judgement.offsetWidth;ui.judgement.classList.add('pop');if(text==='PERFECT'){ui.flash.classList.remove('go');void ui.flash.offsetWidth;ui.flash.classList.add('go')}}
 
 function updateFork(dt) {
@@ -761,7 +818,6 @@ function shareText(){
 }
 
 function showTowerShot(){
-  ui.saveButton.hidden=!towerShot.count;
   if(!towerShot.count)return;
   const image=document.createElement('canvas');image.width=SHOT_WIDTH;image.height=SHOT_HEIGHT;
   const context=image.getContext('2d');
@@ -796,17 +852,113 @@ async function shareResult(){
   open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}${url?`&url=${encodeURIComponent(url)}`:''}`,'_blank','noopener');
 }
 
-function saveTowerShot(){
-  if(!towerShot.url)return;
-  const link=Object.assign(document.createElement('a'),{href:towerShot.url,download:'sausage-tower.png'});
-  link.click();
+// Ranking: every game asks the API for a one-time play token. When the game
+// ends the score is recorded right away for this browser's player, whose
+// entry keeps their best. The player can then set the name shown for it.
+let rankingPeriod='all',rankingEntry=null;
+const rankingErrors={
+  invalid_name:'その名前は使えません',
+  invalid_key:'先にゲームを1回記録してください',
+  invalid_token:'この記録はランキングに記録できませんでした',
+  invalid_score:'この記録はランキングに記録できませんでした',
+  too_many_requests:'少し時間をおいてから試してください'
+};
+
+async function rankingApi(path,options){
+  const response=await fetch(`${RANKING_API}/${path}`,options);
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw Object.assign(new Error(data.error||'request_failed'),{code:data.error});
+  return data;
+}
+
+function postJson(path,body){
+  return rankingApi(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+}
+
+function startRankingSession(){
+  state.playTokenRequest=RANKING_API?rankingApi('start.php',{method:'POST'}).then(data=>data.token).catch(()=>null):Promise.resolve(null);
+}
+
+function setRankingStatus(text){
+  ui.rankingStatus.textContent=text;ui.rankingStatus.hidden=!text;
+}
+
+async function recordRanking(){
+  rankingEntry=null;ui.rankingForm.hidden=true;setRankingStatus('');
+  if(!RANKING_API||!state.caught)return;
+  const request=state.playTokenRequest,score=state.score,sausages=state.caught;
+  const isCurrent=()=>state.mode==='result'&&request===state.playTokenRequest;
+  setRankingStatus('ランキングに記録中…');
+  const token=await request;
+  if(!isCurrent())return;
+  if(!token){setRankingStatus('通信できなかったため、ランキングに記録できませんでした');return}
+  try{
+    const result=await postJson('score.php',{token,playerKey:playerKey(),score,sausages,name:readName()||undefined});
+    if(!isCurrent())return;
+    rankingEntry=result;
+    setRankingStatus(rankingSummary(result,score));
+    ui.rankingName.value=readName()||'';ui.rankingSubmit.disabled=false;ui.rankingForm.hidden=false;
+  }catch(error){
+    if(isCurrent())setRankingStatus(rankingErrors[error.code]||'ランキングに記録できませんでした');
+  }
+}
+
+// The ranking shows each player's best, so say when this game did not beat it.
+function rankingSummary(entry,score){
+  const ranks=`総合 ${entry.rankAll}位 ／ 今日 ${entry.rankToday}位`;
+  return score>=entry.bestAll?`${ranks}（ベスト更新！）`:`${ranks}（ランキングはベスト ${entry.bestAll}点で掲載）`;
+}
+
+async function submitRankingName(){
+  const name=ui.rankingName.value.trim(),entry=rankingEntry;
+  if(!name||!entry)return;
+  ui.rankingSubmit.disabled=true;
+  try{
+    const result=await postJson('name.php',{playerKey:playerKey(),name});
+    writeName(result.name);ui.rankingName.value=result.name;
+    if(entry===rankingEntry)setRankingStatus(`「${result.name}」で登録しました（総合 ${entry.rankAll}位 ／ 今日 ${entry.rankToday}位）`);
+  }catch(error){
+    if(entry===rankingEntry)setRankingStatus(rankingErrors[error.code]||'名前を登録できませんでした');
+  }finally{
+    ui.rankingSubmit.disabled=false;
+  }
+}
+
+function openRanking(){
+  ui.rankingPanel.hidden=false;
+  loadRanking(rankingPeriod);
+}
+
+async function loadRanking(period){
+  rankingPeriod=period;
+  ui.rankingPanel.querySelectorAll('[data-period]').forEach(tab=>tab.classList.toggle('active',tab.dataset.period===period));
+  ui.rankingList.replaceChildren();
+  ui.rankingMessage.textContent='読み込み中…';
+  try{
+    const {entries}=await rankingApi(`ranking.php?period=${period}`);
+    if(period!==rankingPeriod)return;
+    ui.rankingList.replaceChildren(...entries.map(entry=>{
+      const row=document.createElement('li');
+      [['rank',entry.rank],['name',entry.name],['count',`${entry.sausages}本`],['points',entry.score]].forEach(([className,text])=>{
+        const cell=document.createElement('span');cell.className=className;cell.textContent=text;row.append(cell);
+      });
+      return row;
+    }));
+    ui.rankingMessage.textContent=entries.length?'':'まだ記録がありません';
+  }catch{
+    if(period===rankingPeriod)ui.rankingMessage.textContent='ランキングを読み込めませんでした';
+  }
 }
 
 addEventListener('resize',resize,{passive:true});resize();
 ui.startButton.addEventListener('click',e=>{e.stopPropagation();initAudio();resetGame()});
 ui.retryButton.addEventListener('click',e=>{e.stopPropagation();resetGame()});
+ui.titleButton.addEventListener('click',e=>{e.stopPropagation();showTitle()});
 ui.shareButton.addEventListener('click',e=>{e.stopPropagation();shareResult()});
-ui.saveButton.addEventListener('click',e=>{e.stopPropagation();saveTowerShot()});
+ui.rankingForm.addEventListener('submit',e=>{e.preventDefault();submitRankingName()});
+[ui.titleRankingButton,ui.resultRankingButton].forEach(button=>{button.hidden=!RANKING_API;button.addEventListener('click',e=>{e.stopPropagation();openRanking()})});
+ui.rankingClose.addEventListener('click',e=>{e.stopPropagation();ui.rankingPanel.hidden=true});
+ui.rankingPanel.querySelectorAll('[data-period]').forEach(tab=>tab.addEventListener('click',()=>loadRanking(tab.dataset.period)));
 function moveForkFromPointer(e){
   if(state.mode!=='playing')return;
   const rect=ui.game.getBoundingClientRect();

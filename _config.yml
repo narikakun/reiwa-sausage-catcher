@@ -1,0 +1,3 @@
+# GitHub Pages serves the game only; the ranking API lives on the rental server.
+exclude:
+  - server
