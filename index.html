@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#ff5d38" />
+    <title>令和版ソーセージキャッチャー</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+          "@dimforge/rapier3d-compat": "https://esm.sh/@dimforge/rapier3d-compat@0.21.0"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main id="game" class="is-title" aria-label="令和版ソーセージキャッチャー">
+      <canvas id="scene" aria-hidden="true"></canvas>
+
+      <section class="hud" aria-label="スコア">
+        <div class="score-card"><span>SCORE</span><strong id="score">0000</strong></div>
+        <div class="play-title" aria-label="令和版ソーセージキャッチャー"><small>令和版</small><b>ソーセージキャッチャー</b></div>
+        <div class="best-card"><span>BEST</span><strong id="best">0000</strong></div>
+      </section>
+
+      <div class="judgement" id="judgement" aria-live="assertive"></div>
+
+      <section class="start-panel" id="startPanel">
+        <h1 class="title-logo">
+          <img src="./assets/title-logo.webp" alt="令和版ソーセージキャッチャー" />
+        </h1>
+        <button id="startButton" type="button"><span class="play-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 5.5v13l10.5-6.5z" /></svg></span><b>スタート</b></button>
+        <p class="title-best"><span>ベストスコア</span><b id="titleBest">0000</b></p>
+      </section>
+
+      <section class="result-panel" id="resultPanel" hidden>
+        <p class="eyebrow" id="resultEyebrow">BALANCE LOST!</p>
+        <h2 id="resultTitle">崩れた！</h2>
+        <img class="result-shot" id="resultShot" alt="一番高く積み上げたときのタワー" hidden />
+        <p class="result-score"><span>SCORE</span><b id="finalScore">0000</b></p>
+        <p id="newBest" class="new-best">NEW BEST!</p>
+        <p class="result-best" id="resultBest"></p>
+        <div class="result-actions">
+          <button id="shareButton" type="button">シェア</button>
+          <button id="saveButton" type="button">画像を保存</button>
+        </div>
+        <button id="retryButton" type="button">もう一回！</button>
+      </section>
+
+      <button class="sound-toggle" id="soundToggle" type="button" aria-label="音を切る">♪</button>
+      <div class="tap-zone" id="tapZone" aria-label="左右にスライドして串を動かす">
+        <span>左右にスライド！</span>
+      </div>
+      <div class="flash" id="flash"></div>
+      <div class="loading" id="loading"><b>焼いてます…</b><span></span></div>
+    </main>
+    <script>
+      // Shown when the CDN, Rapier or an asset fails before the game finishes loading.
+      function showLoadError() {
+        const loading = document.getElementById('loading');
+        if (loading.classList.contains('done')) return;
+        loading.classList.add('error');
+        loading.querySelector('b').textContent = '読み込みに失敗しました';
+        loading.querySelector('span').textContent = '通信状況を確認して、再読み込みしてください';
+      }
+      addEventListener('error', showLoadError);
+      addEventListener('unhandledrejection', showLoadError);
+    </script>
+    <script type="module" src="./main.js" onerror="showLoadError()"></script>
+  </body>
+</html>
