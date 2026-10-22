@@ -96,3 +96,15 @@
   .result-stats div{padding:5px 0}.result-buttons .img-button img{max-height:66px}
 }
 @media(max-width:360px){.result-summary{grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr)}.result-shot-frame{padding:5px}.result-panel .result-shot{inset:5px;width:calc(100% - 10px);height:calc(100% - 10px)}.result-stats{padding-inline:6px}.result-stats dt span{width:17px}.result-buttons{width:100%}}
+/* Never squash result blocks into each other: when they do not fit, the panel scrolls. */
+.result-panel>*{flex-shrink:0}
+.result-stats dt{font-size:clamp(10px,2.9vw,15px)}.result-stats .stat-icon{width:clamp(18px,4.8vw,28px);height:clamp(18px,4.8vw,28px)}
+@media(max-height:620px){
+  .result-header{min-height:78px}.result-panel .result-title{height:44px}
+  .result-shot-frame::before{min-height:150px}
+  .score-board{padding-top:18px}.score-board .score-number{height:34px}
+  .result-stats div{padding:3px 0}
+  .result-buttons .img-button img{max-height:52px}
+  .result-shot-frame::before{min-height:130px}
+  .result-panel .ranking-status{padding:5px 10px;font-size:12px}
+}

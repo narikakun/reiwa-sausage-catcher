@@ -65,6 +65,23 @@ renderImageNumber(ui.score,0,4);
 renderImageNumber(ui.best,state.best,4);
 ui.titleBest.textContent = pad(state.best);
 
+// Every piece of UI artwork (digits, result screen, buttons, backgrounds) is
+// fetched and decoded while the loading screen is up, so numbers and screens
+// never pop in later. The images are kept referenced so the decoded copies
+// stay in memory. A failed image only costs that image, not the game.
+const UI_IMAGES=[
+  ...Array.from({length:10},(_,digit)=>`./assets/result/digit-${digit}.webp`),
+  './assets/result/header-frame.webp','./assets/result/title-dropped.webp','./assets/result/title-collapsed.webp',
+  './assets/result/icon-caught.webp','./assets/result/icon-missed.webp','./assets/result/icon-time.webp',
+  './assets/btn-start.webp','./assets/btn-ranking.webp','./assets/btn-share.webp','./assets/btn-retry.webp','./assets/btn-title.webp',
+  './assets/title-logo.webp','./assets/game-bbq-background.webp','./assets/title-bbq-background.webp'
+];
+const preloadedImages=[];
+const uiImagesReady=Promise.all(UI_IMAGES.map(src=>{
+  const image=new Image();image.src=src;preloadedImages.push(image);
+  return image.decode().catch(()=>{});
+}));
+
 await RAPIER.init();
 
 const renderer = new THREE.WebGLRenderer({ canvas: ui.canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -981,5 +998,6 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.034,(now-las
   if(state.mode==='playing'&&state.shotDueAt>=0&&state.elapsed>=state.shotDueAt){state.shotDueAt=-1;captureTowerShot()}
   renderer.render(scene,camera)
 }
+await uiImagesReady;
 ui.loading.classList.add('done');state.mode='start';requestAnimationFrame(frame);
 
