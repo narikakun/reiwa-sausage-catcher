@@ -978,6 +978,8 @@ ui.shareButton.addEventListener('click',e=>{e.stopPropagation();shareResult()});
 ui.rankingForm.addEventListener('submit',e=>{e.preventDefault();submitRankingName()});
 [ui.titleRankingButton,ui.resultRankingButton].forEach(button=>{button.hidden=!RANKING_API;button.addEventListener('click',e=>{e.stopPropagation();openRanking()})});
 ui.rankingClose.addEventListener('click',e=>{e.stopPropagation();ui.rankingPanel.hidden=true});
+// カードの外（暗い背景）をタップしても閉じる
+ui.rankingPanel.addEventListener('click',e=>{if(e.target===ui.rankingPanel)ui.rankingPanel.hidden=true});
 ui.rankingPanel.querySelectorAll('[data-period]').forEach(tab=>tab.addEventListener('click',()=>loadRanking(tab.dataset.period)));
 function moveForkFromPointer(e){
   if(state.mode!=='playing')return;
